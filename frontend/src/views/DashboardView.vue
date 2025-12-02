@@ -101,7 +101,7 @@
                 </div>
                 <div class="flex justify-end gap-3">
                     <button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-brand-orange rounded-md hover:bg-orange-600">Crear</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-brand-orange rounded-md hover:bg-gray-700 hover:cursor-pointer transition hover:duration-150 bg-gray-700">Crear</button>
                 </div>
             </form>
         </div>
