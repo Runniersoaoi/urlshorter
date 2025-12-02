@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+asyncpg
+redis
+hashids
+pydantic
+pydantic-settings
+python-multipart
+httpx
+greenlet
