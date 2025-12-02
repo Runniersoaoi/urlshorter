@@ -50,6 +50,14 @@ async def update_url(db: AsyncSession, db_url: URL, url_update: URLUpdate) -> UR
 
 
 async def delete_url(db: AsyncSession, db_url: URL):
+    # Delete associated stats first
+    await db.execute(
+        select(URLStats).where(URLStats.short_id == db_url.short_id).execution_options(synchronize_session=False)
+    )
+    # Actually, we need to use delete() construct, not select
+    from sqlalchemy import delete
+    await db.execute(delete(URLStats).where(URLStats.short_id == db_url.short_id))
+    
     await db.delete(db_url)
     await db.commit()
 
