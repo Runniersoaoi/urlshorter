@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
 
 @import url('https://fonts.googleapis.com/css?family=Roboto+Condensed');
 

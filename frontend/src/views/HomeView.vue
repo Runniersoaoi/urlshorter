@@ -31,18 +31,38 @@ const shortenUrl = async () => {
     loading.value = false
   }
 }
+
+const copyToClipboard = async (text) => {
+    try {
+        await navigator.clipboard.writeText(text)
+        alert('Link copied to clipboard!')
+    } catch (err) {
+        console.error('Failed to copy: ', err)
+    }
+}
+
+const downloadQr = async (url) => {
+    const shortId = url.split('/').pop()
+    const response = await axios.get(`http://localhost:8000/qr/${shortId}`, { responseType: 'blob' })
+    const blob = new Blob([response.data], { type: 'image/png' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `qr-${shortId}.png`
+    link.click()
+    URL.revokeObjectURL(link.href)
+}
 </script>
 
 <template>
   <div class="bg-brand-dark min-h-[calc(100vh-64px)] flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl w-full text-center space-y-8">
       <div>
-        <h2 class="text-brand-orange text-sm font-bold tracking-wide uppercase">Bitly Links</h2>
-        <h1 class="mt-2 text-4xl font-extrabold text-white sm:text-5xl sm:tracking-tight lg:text-6xl">
-          Crea enlaces de alto rendimiento<br/>con nuestro acortador de URL
+        <h2 class="text-brand-orange text-sm font-bold tracking-wide uppercase">Shorter Links</h2>
+        <h1 class="mt-2 text-4xl font-extrabold text-black sm:text-5xl sm:tracking-tight lg:text-6xl">
+          Crea tu enlace corto <br/>con nuestro acortador de URL
         </h1>
-        <p class="mt-4 max-w-2xl mx-auto text-xl text-gray-300">
-          Crea relaciones duraderas con tu público utilizando links acortados, fiables y rastreables con la Bitly Connections Platform.
+        <p class="mt-4 max-w-2xl mx-auto text-xl text-gray-800">
+          Crea enlaces que puedes compartir con tu público, fiables y rastreables con Shorter.
         </p>
       </div>
 
@@ -62,7 +82,7 @@ const shortenUrl = async () => {
           <button 
             type="submit" 
             :disabled="loading"
-            class="inline-flex items-center justify-center px-8 py-4 border border-transparent text-base font-medium rounded-md text-brand-dark bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-orange sm:w-auto border-l sm:border-l-gray-200 font-bold"
+            class="inline-flex items-center justify-center px-8 py-4 border border-transparent text-base font-medium rounded-md text-brand-dark bg-white hover:bg-gray-200 hover:cursor-pointer transition hover:duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-orange sm:w-auto border-l sm:border-l-gray-200 font-bold"
           >
             {{ loading ? 'Acortando...' : 'Acortar link' }}
           </button>
@@ -75,13 +95,22 @@ const shortenUrl = async () => {
       
       <div v-if="shortUrl" class="mt-6 p-6 bg-white rounded-lg shadow-xl max-w-3xl mx-auto text-center">
         <p class="text-sm text-gray-500 mb-2">Tu enlace acortado:</p>
-        <div class="flex items-center justify-center gap-4">
-            <a :href="shortUrl" target="_blank" class="text-2xl font-bold text-brand-orange hover:underline break-all">
-                {{ shortUrl }}
-            </a>
-            <button @click="navigator.clipboard.writeText(shortUrl)" class="text-sm text-gray-400 hover:text-gray-600">
-                (Copiar)
-            </button>
+        <div class="flex flex-col items-center justify-center gap-4">
+            <div class="flex items-center gap-4">
+                <a :href="shortUrl" target="_blank" class="text-2xl font-bold text-brand-orange hover:underline break-all">
+                    {{ shortUrl }}
+                </a>
+                <button @click="copyToClipboard(shortUrl)" class="text-sm text-gray-400 hover:text-gray-600 hover:cursor-pointer">
+                    (Copiar)
+                </button>
+            </div>
+            
+            <div class="mt-4 flex flex-col items-center hover:cursor-pointer">
+                <img :src="`http://localhost:8000/qr/${shortUrl.split('/').pop()}`" alt="QR Code" class="w-32 h-32 border p-1 rounded" />
+                <button @click="downloadQr(shortUrl)" class="mt-2 text-xs text-brand-dark hover:underline hover:cursor-pointer">
+                    Descargar QR
+                </button>
+            </div>
         </div>
         <div class="mt-4">
            <router-link :to="{ name: 'stats', params: { shortId: shortUrl.split('/').pop() } }" class="text-brand-dark hover:text-brand-orange font-medium underline">

@@ -10,6 +10,9 @@ from redis_client import get_redis
 import redis.asyncio as redis
 import httpx
 import os
+import qrcode
+from io import BytesIO
+from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from auth import verify_password, create_access_token, get_password_hash
 from jose import JWTError, jwt
@@ -216,6 +219,33 @@ async def redirect_to_url(
 async def get_stats(short_id: str, db: AsyncSession = Depends(get_db)):
     stats = await get_url_stats(db, short_id)
     return stats
+
+
+@app.get("/qr/{short_id}")
+async def get_qr_code(short_id: str, request: Request):
+    # Construct the full URL
+    # Use request.base_url to get the current scheme/host/port
+    # Or hardcode if behind proxy, but dynamic is better for portability
+    full_url = str(request.base_url).rstrip('/') + f"/{short_id}"
+    
+    # Generate QR Code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(full_url)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Save to BytesIO
+    img_byte_arr = BytesIO()
+    img.save(img_byte_arr, format='PNG')
+    img_byte_arr.seek(0)
+    
+    return StreamingResponse(img_byte_arr, media_type="image/png")
 
 
 @app.get("/health")

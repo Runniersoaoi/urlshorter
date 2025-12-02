@@ -33,7 +33,7 @@ onMounted(async () => {
             labels: Object.keys(stats.value.browsers),
             datasets: [
                 {
-                    label: 'Clicks by Browser',
+                    label: 'Clicks por navegador',
                     backgroundColor: '#4f46e5',
                     data: Object.values(stats.value.browsers)
                 }
@@ -60,10 +60,10 @@ onMounted(async () => {
     
     <div v-else class="space-y-6">
       <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">Statistics for {{ shortId }}</h2>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Métricas de {{ shortId }}</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
           <div class="p-4 bg-indigo-50 rounded-lg">
-            <p class="text-sm text-indigo-600 font-medium">Total Clicks</p>
+            <p class="text-sm text-indigo-600 font-medium">Total de clicks</p>
             <p class="text-3xl font-bold text-indigo-900">{{ stats.total_clicks }}</p>
           </div>
           <!-- Add more summary cards here -->
@@ -72,7 +72,7 @@ onMounted(async () => {
       
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-white p-6 rounded-lg shadow-md">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Browsers</h3>
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Buscadores</h3>
             <Bar :data="chartData" :options="chartOptions" />
         </div>
         
