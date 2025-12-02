@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
 from database import init_db, get_db
 from schemas import URLCreate, URLResponse, URLStatsResponse
-from crud import create_url, get_url_by_short_id, create_url_stats, get_url_stats
+from crud import create_url, get_url_by_short_id, create_url_stats, get_url_stats, update_url, delete_url
 from redis_client import get_redis
 import redis.asyncio as redis
 import httpx
@@ -13,11 +13,13 @@ import os
 import qrcode
 from io import BytesIO
 from fastapi.responses import StreamingResponse
+from user_agents import parse
+import aiohttp
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from auth import verify_password, create_access_token, get_password_hash
 from jose import JWTError, jwt
 from auth import SECRET_KEY, ALGORITHM
-from schemas import UserCreate, UserResponse, Token, UserLogin
+from schemas import UserCreate, UserResponse, Token, UserLogin, URLUpdate
 from crud import create_user, get_user_by_email, get_user_urls
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
@@ -37,7 +39,7 @@ app = FastAPI(title="URL Shortener API", lifespan=lifespan)
 # ---------------- CORS ----------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -171,6 +173,40 @@ async def shorten_url(
     return db_url
 
 
+@app.put("/urls/{short_id}", response_model=URLResponse)
+async def update_url_endpoint(
+    short_id: str,
+    url_update: URLUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    db_url = await get_url_by_short_id(db, short_id)
+    if not db_url:
+        raise HTTPException(status_code=404, detail="URL not found")
+    
+    if db_url.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this URL")
+    
+    return await update_url(db, db_url, url_update)
+
+
+@app.delete("/urls/{short_id}")
+async def delete_url_endpoint(
+    short_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    db_url = await get_url_by_short_id(db, short_id)
+    if not db_url:
+        raise HTTPException(status_code=404, detail="URL not found")
+    
+    if db_url.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this URL")
+    
+    await delete_url(db, db_url)
+    return {"message": "URL deleted successfully"}
+
+
 @app.get("/{short_id}")
 async def redirect_to_url(
     short_id: str,
@@ -200,19 +236,57 @@ async def redirect_to_url(
         except Exception as e:
             print(f"[Cache] Redis error: {e}")
 
+    # Parse User Agent
+    ua_string = request.headers.get("User-Agent", "")
+    user_agent = parse(ua_string)
+    browser = user_agent.browser.family
+    os_name = user_agent.os.family
+    device = user_agent.device.family
+
+    # Get Country (Async)
+    # We can do this inside the background task function to avoid blocking response
+    # But background_tasks.add_task expects a function.
+    # Let's create a wrapper function.
+    
     background_tasks.add_task(
-        create_url_stats,
+        record_stats,
         db,
         short_id,
-        ip=request.client.host,
-        country="Unknown",
-        browser=request.headers.get("User-Agent"),
-        os="Unknown",
-        device="Unknown",
-        referrer=request.headers.get("Referer")
+        request.client.host,
+        ua_string,
+        request.headers.get("Referer")
     )
 
     return RedirectResponse(url=original_url)
+
+async def record_stats(db: AsyncSession, short_id: str, ip: str, ua_string: str, referrer: str):
+    user_agent = parse(ua_string)
+    browser = user_agent.browser.family
+    os_name = user_agent.os.family
+    device = user_agent.device.family
+    
+    country = "Unknown"
+    if ip and ip != "127.0.0.1" and ip != "::1":
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"http://ip-api.com/json/{ip}", timeout=2) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if data.get("status") == "success":
+                            country = data.get("country", "Unknown")
+        except Exception as e:
+            print(f"[Stats] Geo error: {e}")
+
+    await create_url_stats(
+        db,
+        short_id,
+        ip=ip,
+        country=country,
+        browser=browser,
+        os=os_name,
+        device=device,
+        referrer=referrer
+    )
 
 
 @app.get("/stats/{short_id}", response_model=URLStatsResponse)

@@ -6,10 +6,15 @@ class URLBase(BaseModel):
     original_url: HttpUrl
 
 class URLCreate(URLBase):
-    pass
+    title: Optional[str] = None
+
+class URLUpdate(BaseModel):
+    title: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class URLResponse(URLBase):
     short_id: str
+    title: Optional[str] = None
     created_at: datetime
     expires_at: Optional[datetime] = None
     is_active: bool

@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models import URL, URLStats, User
-from schemas import URLCreate, UserCreate
+from schemas import URLCreate, UserCreate, URLUpdate
 from utils import generate_short_id
 from auth import get_password_hash
 from datetime import datetime
@@ -16,6 +16,7 @@ async def create_url(db: AsyncSession, url: URLCreate, user_id: int = None) -> U
     db_url = URL(
         original_url=str(url.original_url),
         short_id=temp_short_id,
+        title=url.title,
         user_id=user_id
     )
     db.add(db_url)
@@ -26,11 +27,31 @@ async def create_url(db: AsyncSession, url: URLCreate, user_id: int = None) -> U
     # 3) Actualizar con el verdadero short_id basado en el ID generado
     db_url.short_id = generate_short_id(db_url.id)
     
+    # If title is None, default to short_id
+    if not db_url.title:
+        db_url.title = db_url.short_id
+
     # 4) Guardar cambios finales
     await db.commit()
     await db.refresh(db_url)
     
     return db_url
+
+
+async def update_url(db: AsyncSession, db_url: URL, url_update: URLUpdate) -> URL:
+    if url_update.title is not None:
+        db_url.title = url_update.title
+    if url_update.is_active is not None:
+        db_url.is_active = url_update.is_active
+    
+    await db.commit()
+    await db.refresh(db_url)
+    return db_url
+
+
+async def delete_url(db: AsyncSession, db_url: URL):
+    await db.delete(db_url)
+    await db.commit()
 
 
 async def get_url_by_short_id(db: AsyncSession, short_id: str) -> URL | None:

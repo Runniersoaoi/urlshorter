@@ -8,6 +8,7 @@ class URL(Base):
     id = Column(Integer, primary_key=True, index=True)
     short_id = Column(String, unique=True, index=True, nullable=False)
     original_url = Column(String, nullable=False)
+    title = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True)

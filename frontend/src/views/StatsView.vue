@@ -73,17 +73,22 @@ onMounted(async () => {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-white p-6 rounded-lg shadow-md">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Buscadores</h3>
-            <Bar :data="chartData" :options="chartOptions" />
+            <div v-if="chartData.labels.length > 0">
+                <Bar :data="chartData" :options="chartOptions" />
+            </div>
+            <div v-else class="text-center py-8 text-gray-500 italic">
+                No hay datos de navegación aún.
+            </div>
         </div>
         
         <div class="bg-white p-6 rounded-lg shadow-md">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Countries</h3>
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Países</h3>
             <ul class="divide-y divide-gray-200">
                 <li v-for="(count, country) in stats.countries" :key="country" class="py-2 flex justify-between">
                     <span class="text-gray-700">{{ country }}</span>
                     <span class="font-medium text-gray-900">{{ count }}</span>
                 </li>
-                <li v-if="Object.keys(stats.countries).length === 0" class="py-2 text-gray-500 italic">No data yet</li>
+                <li v-if="Object.keys(stats.countries).length === 0" class="py-2 text-center text-gray-500 italic">No hay datos de ubicación aún.</li>
             </ul>
         </div>
       </div>
