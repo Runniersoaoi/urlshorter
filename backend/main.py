@@ -10,6 +10,14 @@ from redis_client import get_redis
 import redis.asyncio as redis
 import httpx
 import os
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from auth import verify_password, create_access_token, get_password_hash
+from jose import JWTError, jwt
+from auth import SECRET_KEY, ALGORITHM
+from schemas import UserCreate, UserResponse, Token, UserLogin
+from crud import create_user, get_user_by_email, get_user_urls
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://ml_service:8000")
 
@@ -77,15 +85,77 @@ async def rate_limit_middleware(request: Request, call_next):
 
 # ---------------- ENDPOINTS ----------------
 
+# ---------------- AUTH DEPENDENCY ----------------
+async def get_current_user_optional(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            return None
+    except JWTError:
+        return None
+    
+    user = await get_user_by_email(db, email=email)
+    return user
+
+async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user = await get_user_by_email(db, email=email)
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+# ---------------- ENDPOINTS ----------------
+
+@app.post("/register", response_model=UserResponse)
+async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
+    db_user = await get_user_by_email(db, email=user.email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    return await create_user(db, user)
+
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+    user = await get_user_by_email(db, email=form_data.username)
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/users/me/urls", response_model=list[URLResponse])
+async def read_user_urls(current_user = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await get_user_urls(db, user_id=current_user.id)
+
 @app.post("/shorten", response_model=URLResponse)
 async def shorten_url(
     url: URLCreate,
     db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis),
+    current_user = Depends(get_current_user_optional)
 ):
     await check_safe_url(str(url.original_url))
 
-    db_url = await create_url(db, url)
+    user_id = current_user.id if current_user else None
+    db_url = await create_url(db, url, user_id=user_id)
 
     # Cache it (fail silently if Redis is down)
     try:

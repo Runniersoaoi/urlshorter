@@ -1,20 +1,22 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from models import URL, URLStats
-from schemas import URLCreate
+from models import URL, URLStats, User
+from schemas import URLCreate, UserCreate
 from utils import generate_short_id
+from auth import get_password_hash
 from datetime import datetime
 import uuid
 
 
-async def create_url(db: AsyncSession, url: URLCreate) -> URL:
+async def create_url(db: AsyncSession, url: URLCreate, user_id: int = None) -> URL:
     # 1) Generar un short_id temporal único para pasar la restricción NOT NULL
     # Usamos UUID para evitar colisiones durante el flush
     temp_short_id = f"temp_{uuid.uuid4().hex[:8]}"
     
     db_url = URL(
         original_url=str(url.original_url),
-        short_id=temp_short_id
+        short_id=temp_short_id,
+        user_id=user_id
     )
     db.add(db_url)
 
@@ -82,3 +84,19 @@ async def get_url_stats(db: AsyncSession, short_id: str):
         "os": os_systems,
         "referrers": referrers
     }
+
+async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
+    result = await db.execute(select(User).where(User.email == email))
+    return result.scalars().first()
+
+async def create_user(db: AsyncSession, user: UserCreate) -> User:
+    hashed_password = get_password_hash(user.password)
+    db_user = User(email=user.email, password_hash=hashed_password)
+    db.add(db_user)
+    await db.commit()
+    await db.refresh(db_user)
+    return db_user
+
+async def get_user_urls(db: AsyncSession, user_id: int):
+    result = await db.execute(select(URL).where(URL.user_id == user_id))
+    return result.scalars().all()
