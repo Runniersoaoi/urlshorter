@@ -24,7 +24,7 @@ const chartOptions = {
 
 onMounted(async () => {
   try {
-    const response = await axios.get(`http://localhost:8000/stats/${shortId}`)
+    const response = await axios.get(`http://92.112.176.124:8000/stats/${shortId}`)
     stats.value = response.data
     
     // Prepare chart data (e.g., browsers)
