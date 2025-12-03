@@ -39,7 +39,7 @@ app = FastAPI(title="URL Shortener API", lifespan=lifespan)
 # ---------------- CORS ----------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost", "http://92.112.176.124:8081", "https://shortter.matiasaquino.com/"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost", "http://92.112.176.124:8081", "https://shortter.matiasaquino.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
