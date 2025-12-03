@@ -1,6 +1,38 @@
-
+version: "3.9"
 
 services:
+  traefik:
+    image: traefik:3.3
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      # Entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      # Redirección HTTP → HTTPS
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+
+      # Certificados con ACME
+      - "--certificatesresolvers.cloudflare.acme.httpchallenge=true"
+      - "--certificatesresolvers.cloudflare.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.cloudflare.acme.email=tu-email@gmail.com"
+      - "--certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json"
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "letsencrypt:/letsencrypt"
+
+    networks:
+      - app_network
+    restart: always
+
   db:
     image: postgres:15-alpine
     restart: always
@@ -12,66 +44,62 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - app_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d urlshortener"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: redis:7-alpine
     restart: always
     networks:
       - app_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   backend:
     build: ./backend
     restart: always
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      ml_service:
-        condition: service_started
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-urlshortener}
+      DATABASE_URL: postgresql+asyncpg://user:password@db:5432/urlshortener
       REDIS_URL: redis://redis:6379/0
       ML_SERVICE_URL: http://ml_service:8000
-      # Add other env vars here
-      SECRET_KEY: ${SECRET_KEY:-supersecretkey}
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-    ports:
-      - "8000:8000"
+      SECRET_KEY: supersecretkey
     networks:
       - app_network
+    depends_on:
+      - db
+      - redis
+      - ml_service
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`shortter-api.matiasaquino.com`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=cloudflare"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
 
   ml_service:
     build: ./ml_service
     restart: always
-    ports:
-      - "8001:8000"
     networks:
       - app_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ml.rule=Host(`ml.matiasaquino.com`)"
+      - "traefik.http.routers.ml.entrypoints=websecure"
+      - "traefik.http.routers.ml.tls.certresolver=cloudflare"
+      - "traefik.http.services.ml.loadbalancer.server.port=8000"
 
   frontend:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: http://92.112.176.124:8000
+        VITE_API_URL: https://shortter-api.matiasaquino.com  # importante
     restart: always
-    ports:
-      - "8081:80"
     networks:
       - app_network
     depends_on:
       - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`shortter.matiasaquino.com`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=cloudflare"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
 networks:
   app_network:
@@ -79,3 +107,4 @@ networks:
 
 volumes:
   postgres_data:
+  letsencrypt:
