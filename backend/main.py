@@ -300,7 +300,7 @@ async def get_qr_code(short_id: str, request: Request):
     # Construct the full URL
     # Use request.base_url to get the current scheme/host/port
     # Or hardcode if behind proxy, but dynamic is better for portability
-    full_url = f"https://shortter.matiasaquino.com/{short_id}"
+    full_url = f"https://shortter-api.matiasaquino.com/{short_id}"
     
     # Generate QR Code
     qr = qrcode.QRCode(
