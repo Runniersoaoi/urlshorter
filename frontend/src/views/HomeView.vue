@@ -6,6 +6,7 @@ const originalUrl = ref('')
 const shortUrl = ref('')
 const error = ref('')
 const loading = ref(false)
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const shortenUrl = async () => {
   loading.value = true
@@ -16,11 +17,12 @@ const shortenUrl = async () => {
     const token = localStorage.getItem('token')
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
     
-    const response = await axios.post('http://localhost:8000/shorten', {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    const response = await axios.post(`${apiUrl}/shorten`, {
       original_url: originalUrl.value
     }, { headers })
     
-    shortUrl.value = `http://localhost:8000/${response.data.short_id}`
+    shortUrl.value = `${apiUrl}/${response.data.short_id}`
   } catch (err) {
     if (err.response && err.response.data && err.response.data.detail) {
       error.value = err.response.data.detail
@@ -43,7 +45,8 @@ const copyToClipboard = async (text) => {
 
 const downloadQr = async (url) => {
     const shortId = url.split('/').pop()
-    const response = await axios.get(`http://localhost:8000/qr/${shortId}`, { responseType: 'blob' })
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    const response = await axios.get(`${apiUrl}/qr/${shortId}`, { responseType: 'blob' })
     const blob = new Blob([response.data], { type: 'image/png' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -106,7 +109,7 @@ const downloadQr = async (url) => {
             </div>
             
             <div class="mt-4 flex flex-col items-center hover:cursor-pointer">
-                <img :src="`http://localhost:8000/qr/${shortUrl.split('/').pop()}`" alt="QR Code" class="w-32 h-32 border p-1 rounded" />
+                <img :src="`${apiUrl}/qr/${shortUrl.split('/').pop()}`" alt="QR Code" class="w-32 h-32 border p-1 rounded" />
                 <button @click="downloadQr(shortUrl)" class="mt-2 text-xs text-brand-dark hover:underline hover:cursor-pointer">
                     Descargar QR
                 </button>

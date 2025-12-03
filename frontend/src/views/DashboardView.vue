@@ -31,15 +31,15 @@
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4 overflow-hidden">
                     <!-- QR Thumbnail -->
-                    <img :src="`http://localhost:8000/qr/${url.short_id}`" alt="QR" class="w-12 h-12 border rounded p-1 bg-white flex-shrink-0 cursor-pointer" @click="downloadQr(url.short_id)" title="Click to Download" />
+                    <img :src="`${apiUrl}/qr/${url.short_id}`" alt="QR" class="w-12 h-12 border rounded p-1 bg-white flex-shrink-0 cursor-pointer" @click="downloadQr(url.short_id)" title="Click to Download" />
                     
                     <div class="truncate">
                         <p class="text-lg font-semibold text-brand-dark truncate">{{ url.title || url.short_id }}</p>
                         <div class="flex items-center gap-2 text-sm text-brand-orange">
-                            <a :href="`http://localhost:8000/${url.short_id}`" target="_blank" class="hover:underline truncate">
-                                http://localhost:8000/{{ url.short_id }}
+                            <a :href="`${apiUrl}/${url.short_id}`" target="_blank" class="hover:underline truncate">
+                                {{ apiUrl }}/{{ url.short_id }}
                             </a>
-                            <button @click="copyToClipboard(`http://localhost:8000/${url.short_id}`)" class="text-gray-400 hover:text-gray-600" title="Copiar">
+                            <button @click="copyToClipboard(`${apiUrl}/${url.short_id}`)" class="text-gray-400 hover:text-gray-600" title="Copiar">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
@@ -137,6 +137,7 @@ const router = useRouter()
 const searchQuery = ref('')
 const startDate = ref('')
 const endDate = ref('')
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
@@ -173,7 +174,8 @@ const copyToClipboard = async (text) => {
 }
 
 const downloadQr = async (shortId) => {
-    const response = await axios.get(`http://localhost:8000/qr/${shortId}`, { responseType: 'blob' })
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    const response = await axios.get(`${apiUrl}/qr/${shortId}`, { responseType: 'blob' })
     const blob = new Blob([response.data], { type: 'image/png' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -190,7 +192,8 @@ const fetchUrls = async () => {
     }
 
     try {
-        const response = await axios.get('http://localhost:8000/users/me/urls', {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+        const response = await axios.get(`${apiUrl}/users/me/urls`, {
             headers: { Authorization: `Bearer ${token}` }
         })
         urls.value = response.data
@@ -210,7 +213,8 @@ const openCreateModal = () => {
 const createUrl = async () => {
     const token = localStorage.getItem('token')
     try {
-        await axios.post('http://localhost:8000/shorten', newUrl.value, {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+        await axios.post(`${apiUrl}/shorten`, newUrl.value, {
             headers: { Authorization: `Bearer ${token}` }
         })
         showCreateModal.value = false
@@ -228,7 +232,8 @@ const openEditModal = (url) => {
 const updateUrl = async () => {
     const token = localStorage.getItem('token')
     try {
-        await axios.put(`http://localhost:8000/urls/${currentUrl.value.short_id}`, {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+        await axios.put(`${apiUrl}/urls/${currentUrl.value.short_id}`, {
             title: currentUrl.value.title
         }, {
             headers: { Authorization: `Bearer ${token}` }
@@ -245,7 +250,8 @@ const deleteUrl = async (url) => {
     
     const token = localStorage.getItem('token')
     try {
-        await axios.delete(`http://localhost:8000/urls/${url.short_id}`, {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+        await axios.delete(`${apiUrl}/urls/${url.short_id}`, {
             headers: { Authorization: `Bearer ${token}` }
         })
         await fetchUrls()

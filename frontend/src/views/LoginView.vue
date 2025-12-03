@@ -48,7 +48,8 @@ const handleLogin = async () => {
         formData.append('username', email.value)
         formData.append('password', password.value)
         
-        const response = await axios.post('http://localhost:8000/token', formData)
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+        const response = await axios.post(`${apiUrl}/token`, formData)
         localStorage.setItem('token', response.data.access_token)
         router.push('/dashboard')
     } catch (e) {

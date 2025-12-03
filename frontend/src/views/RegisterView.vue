@@ -43,7 +43,8 @@ const router = useRouter()
 
 const handleRegister = async () => {
     try {
-        await axios.post('http://localhost:8000/register', {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+        await axios.post(`${apiUrl}/register`, {
             email: email.value,
             password: password.value
         })
@@ -51,7 +52,7 @@ const handleRegister = async () => {
         const formData = new FormData()
         formData.append('username', email.value)
         formData.append('password', password.value)
-        const response = await axios.post('http://localhost:8000/token', formData)
+        const response = await axios.post(`${apiUrl}/token`, formData)
         localStorage.setItem('token', response.data.access_token)
         router.push('/dashboard')
     } catch (e) {
